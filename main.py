@@ -9,6 +9,7 @@ from bonusMeteor import BonusMeteor
 from rocket import Rocket
 from enemy import Enemy
 from button import Button
+from holder import Holder
 
 pg.init()
 
@@ -112,9 +113,12 @@ def collision_purple():
 
 
 def collision_rocket_meteor():
+    global meteor_score
     for r in rocket_obj_list:
         for m in meteor_obj_list:
             if r.collision(m):
+                meteor_score += 1
+                meteor_holder.set_score(meteor_score)
                 if m in meteor_obj_list:
                     destroy_meteor_sound.play()
                     meteor_obj_list.remove(m)
@@ -158,9 +162,12 @@ def collision_enemy_rocket_spaceship():
 
 
 def collision_spaceship_rocket_enemy():
+    global dead_score
     for enemy_obj in enemy_obj_list:
         for rocket_obj in rocket_obj_list:
             if enemy_obj.collision_spaceship_rocket(rocket_obj):
+                dead_score += 1
+                dead_holder.set_score(dead_score)
                 enemy_obj_list.remove(enemy_obj)
                 rocket_obj_list.remove(rocket_obj)
 
@@ -199,13 +206,23 @@ def enemy_rocket_update():
         enemy_rocket_obj.update(screen)
 
 
-def objects_update():
+def holders_update():
+    dead_holder.update(screen)
+    meteor_holder.update(screen)
+
+
+def game_update():
     screen_update()
     enemy_rocket_update()
     meteor_update()
     rocket_update()
     enemy_update()
     spaceship_update()
+    holders_update()
+
+
+def end_update():
+    button_obj.update(screen)
 
 
 def objects_collision():
@@ -218,16 +235,25 @@ def objects_collision():
     collision_enemy_rocket_spaceship()
 
 
+def obj_clear():
+    meteor_obj_list.clear()
+    rocket_obj_list.clear()
+    enemy_obj_list.clear()
+    rocket_enemy_list.clear()
+
+
 def click_play(event):
     if event.type == pg.MOUSEBUTTONDOWN and button_obj.x <= pg.mouse.get_pos()[0] <= button_obj.x + Button.WIDTH \
             and button_obj.y <= pg.mouse.get_pos()[1] <= button_obj.y + Button.HEIGHT:
+        obj_clear()
+        if len(space_ship_obj_list) == 0:
+            space_ship_obj_list.append(Spaceship(space_ship_img_list, spaceship_x))
         screen_obj.set_game(True)
 
 
 def check_game():
     if len(space_ship_obj_list) == 0:
         screen_obj.set_game(False)
-        screen_obj.set_img(fail_img)
 
 
 # IMAGE
@@ -243,15 +269,18 @@ button_img = pg.image.load("sprites/play_btn.png")
 
 # AUDIO
 shot_spaceship_sound = pg.mixer.Sound("audio/sounds/shot_spaceship.mp3")
+shot_spaceship_sound.set_volume(0.2)
 destroy_meteor_sound = pg.mixer.Sound("audio/sounds/destroy_meteor.mp3")
+destroy_meteor_sound.set_volume(0.2)
 enemy_spawn_music = pg.mixer.Sound("audio/music/enemy_spawn.wav")
 spaceship_damage_sound3 = pg.mixer.Sound("audio/sounds/spaceship_damage3.wav")
 spaceship_damage_sound2 = pg.mixer.Sound("audio/sounds/spaceship_damage2.wav")
 spaceship_damage_sound1 = pg.mixer.Sound("audio/sounds/spaceship_damage1.wav")
 back_music = pg.mixer.Sound("audio/music/back_music.wav")
+back_music.set_volume(0.1)
 
 # CREATE OBJECTS AND VARIABLES
-screen_obj = Screen(back_img)
+screen_obj = Screen(back_img, fail_img)
 button_obj = Button(600, 300, button_img)
 random_meteor = randint(20, 60)
 meteor_i = 0
@@ -269,6 +298,12 @@ rocket_enemy_random = 120
 enemy_i = 0
 enemy_obj_list = []
 
+dead_score = 0
+dead_holder = Holder(Screen.WIDTH - 320, 15, "fonts/PIXY.ttf", 36, (255, 255, 255), "Убитые враги", dead_score)
+
+meteor_score = 0
+meteor_holder = Holder(20, 15, "fonts/PIXY.ttf", 36, (255, 255, 255), "Сбитые метеоры", meteor_score)
+
 clock = pg.time.Clock()
 
 back_music.play()
@@ -281,7 +316,6 @@ while True:
         click_play(event)
         push_rocket(event)
 
-    objects_update()
     check_game()
 
     if screen_obj.is_game:
@@ -289,8 +323,9 @@ while True:
         create_meteor()
         move_spaceship()
         enemy_push_rocket()
+        game_update()
     else:
-        button_obj.update(screen)
+        end_update()
 
     clock.tick(Screen.FPS)
     pg.display.flip()
